@@ -3,17 +3,54 @@
 <head>
 <meta charset="utf-8">
 <meta name="author" content="Faustus Studio · 浮士德工作室">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <title>墨雨孤刃 · Ink &amp; Rain</title>
 <style>
-html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none;overscroll-behavior:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 canvas{display:block;position:absolute;left:0;top:0;outline:none;touch-action:none}
 #nojs{position:absolute;inset:0;color:#ddd;display:flex;align-items:center;justify-content:center;font:16px sans-serif}
+
+#tc,#pm{display:none}
+body.touch #tc.on{display:block;position:fixed;inset:0;z-index:4;touch-action:none}
+.tb{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:50%;
+ right:calc(var(--r)*1px + env(safe-area-inset-right));bottom:calc(var(--b)*1px + env(safe-area-inset-bottom));width:calc(var(--s)*1px);height:calc(var(--s)*1px);
+ background:rgba(20,18,18,.38);border:2px solid rgba(232,228,218,.55);color:#efe9dc;font:700 calc(var(--s)*.38px) "STKaiti","KaiTi","Kaiti SC","Noto Serif CJK SC","Songti SC",serif;text-shadow:0 0 6px #000;touch-action:none}
+.tb b{pointer-events:none;font-weight:700}
+.tb.down{background:rgba(232,228,218,.5);color:#111;text-shadow:none}
+.tb.atk{background:rgba(160,18,26,.45);border-color:rgba(255,120,110,.8)}
+.tb.atk.down{background:rgba(220,40,50,.75);color:#fff}
+.atk{--r:24;--b:28;--s:88}.jump{--r:126;--b:20;--s:76}.heavy{--r:24;--b:128;--s:64}.parry{--r:100;--b:108;--s:64}.dodge{--r:176;--b:104;--s:64}.heal{--r:218;--b:28;--s:60}
+.pausebtn{--r:12;--s:56;top:calc(10px + env(safe-area-inset-top));bottom:auto;font-size:24px}
+#stk{position:absolute;left:calc(36px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));width:136px;height:136px;border-radius:50%;background:rgba(20,18,18,.3);border:2px solid rgba(232,228,218,.4);pointer-events:none}
+#stk i{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:rgba(232,228,218,.4);border:2px solid rgba(255,250,240,.8);transform:translate(var(--kx,0px),var(--ky,0px))}
+#stk.act{background:rgba(20,18,18,.45)}
+body.touch #pm.on{display:flex;position:fixed;left:50%;top:56%;transform:translate(-50%,-50%);z-index:6;gap:12px;flex-wrap:wrap;justify-content:center;width:min(92vw,560px)}
+#pm div{min-width:128px;padding:14px 18px;text-align:center;color:#efe9dc;background:rgba(20,18,18,.75);border:2px solid rgba(232,228,218,.6);font:700 20px "STKaiti","KaiTi","Kaiti SC","Noto Serif CJK SC","Songti SC",serif;touch-action:none}
+#pm div:active{background:rgba(232,228,218,.5);color:#111}
+#rot{position:fixed;left:50%;top:calc(270px + env(safe-area-inset-top));transform:translateX(-50%);z-index:6;padding:7px 14px;background:rgba(0,0,0,.72);border:1px solid #d6b370;color:#e8d6a8;font:14px sans-serif;display:none;white-space:nowrap}
+@media(orientation:portrait){
+ .atk{--r:20;--b:80;--s:88}.jump{--r:122;--b:60;--s:76}.heavy{--r:20;--b:190;--s:64}.parry{--r:96;--b:170;--s:64}.dodge{--r:172;--b:150;--s:64}.heal{--r:216;--b:60;--s:60}
+ #stk{bottom:calc(80px + env(safe-area-inset-bottom))}
+ body.touch #pm.on{top:42%}
+}
 </style>
 </head>
 <body>
 <canvas id="c" tabindex="0"></canvas>
 <div id="nojs">加载中… Loading…</div>
+<div id="tc">
+  <div id="stk"><i></i></div>
+  <div class="tb atk" data-a="atk"><b>攻</b></div>
+  <div class="tb jump" data-a="jump"><b>跳</b></div>
+  <div class="tb heavy" data-a="heavy"><b>重</b></div>
+  <div class="tb parry" data-a="parry"><b>挡</b></div>
+  <div class="tb dodge" data-a="dodge"><b>闪</b></div>
+  <div class="tb heal" data-a="heal"><b>药</b></div>
+  <div class="tb pausebtn" data-a="pause"><b>‖</b></div>
+</div>
+<div id="pm"><div data-m="resume">继续</div><div data-m="mute">静音</div><div data-m="fs">全屏</div><div data-m="title">回到标题</div></div>
+<div id="rot">↻ 建议把手机横过来玩（点此关闭）</div>
 <script>
 'use strict';
 /* ============================================================
@@ -24,7 +61,10 @@ const W=1280,H=720,TAU=Math.PI*2;
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 document.getElementById('nojs').style.display='none';
 let VS=1,VX=0,VY=0;
-function resize(){const d=Math.min(window.devicePixelRatio||1,2);cv.width=Math.floor(innerWidth*d);cv.height=Math.floor(innerHeight*d);cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';VS=Math.min(cv.width/W,cv.height/H);VX=(cv.width-W*VS)/2;VY=(cv.height-H*VS)/2}
+let TOUCH=!!((window.matchMedia&&matchMedia('(pointer:coarse)').matches)||/[?&]touch=1/.test(location.search));
+document.body.classList.toggle('touch',TOUCH);
+const TT=(a,b)=>TOUCH?b:a;
+function resize(){const d=Math.min(window.devicePixelRatio||1,2);cv.width=Math.floor(innerWidth*d);cv.height=Math.floor(innerHeight*d);cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';VS=Math.min(cv.width/W,cv.height/H);VX=(cv.width-W*VS)/2;VY=(cv.height-H*VS)/2;if(TOUCH&&innerHeight>innerWidth)VY=Math.min(VY,40*d)}
 addEventListener('resize',resize);resize();
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t,rand=(a,b)=>a+Math.random()*(b-a),ease=t=>t*t*(3-2*t);
 const sgn=v=>v<0?-1:1;
@@ -99,12 +139,12 @@ const LEVEL_END=6380,ARENA_L=4975,ARENA_R=6345,BOSS_TRIGGER=5170,GATE_X=6270,BOS
 const CPS=[{x:90,y:560},{x:2460,y:580},{x:3220,y:540},{x:4440,y:500},{x:4950,y:560}];
 const SPAWNS=[['grunt',880],['grunt',1760],['grunt',2040],['spear',2660],['grunt',3390],['shield',3660],['spear',3960],['grunt',4030],['shield',4640],['grunt',4780]];
 const HINTS=[
- {x:60,t:'← → / A D 移动　Space 跳跃（空中再按二段跳，长按滑翔）',id:'h0'},
- {x:420,t:'J 出剑　连按三下成连招　　L 闪避（短暂无敌）',id:'h1'},
- {x:1320,t:'贴墙时按住方向可滑墙，Space 蹬墙跳　　Space 长按可滑翔过沟',id:'h2'},
- {x:1700,t:'K 在敌人出招瞬间按下 = 精准格挡 → 慢动作 → 立刻按 J 反击',id:'h3'},
- {x:2480,t:'红光＝不可格挡的杀招，用 L 闪避或跳起躲开　　Q 饮药',id:'h4'},
- {x:3070,t:'I 重击（按住蓄力）可破盾卫架势　势条满则失衡，近身按 J 处决',id:'h5'},
+ {x:60,t:'← → / A D 移动　Space 跳跃（空中再按二段跳，长按滑翔）',t2:'摇杆左右移动　「跳」跳跃（空中再点二段跳，长按滑翔）',id:'h0'},
+ {x:420,t:'J 出剑　连按三下成连招　　L 闪避（短暂无敌）',t2:'「攻」出剑　连点三下成连招　　「闪」闪避（短暂无敌）',id:'h1'},
+ {x:1320,t:'贴墙时按住方向可滑墙，Space 蹬墙跳　　Space 长按可滑翔过沟',t2:'贴墙时朝墙推摇杆可滑墙，「跳」蹬墙跳　　「跳」长按可滑翔过沟',id:'h2'},
+ {x:1700,t:'K 在敌人出招瞬间按下 = 精准格挡 → 慢动作 → 立刻按 J 反击',t2:'「挡」在敌人出招瞬间点按 = 精准格挡 → 慢动作 → 立刻点「攻」反击',id:'h3'},
+ {x:2480,t:'红光＝不可格挡的杀招，用 L 闪避或跳起躲开　　Q 饮药',t2:'红光＝不可格挡的杀招，用「闪」闪避或跳起躲开　　「药」饮药',id:'h4'},
+ {x:3070,t:'I 重击（按住蓄力）可破盾卫架势　势条满则失衡，近身按 J 处决',t2:'「重」重击（按住蓄力）可破盾卫架势　势条满则失衡，近身点「攻」处决',id:'h5'},
  {x:4420,t:'前方灯笼可点亮存档。观雨楼就在前面——送信，闯过守楼人。',id:'h6'}
 ];
 function platAt(x,y,tol){for(const p of PL){if(p.kind==='awn')continue;if(x>=p.x&&x<=p.x+p.w&&Math.abs(p.y-y)<(tol||8))return p}return null}
@@ -606,7 +646,7 @@ function worldUpdate(dt,rdt){
   // triggers
   if(!p.dead){
     CPS.forEach((c,i)=>{if(i>G.cp&&Math.abs(p.x-c.x)<80&&Math.abs(p.y-c.y)<90){G.cp=i;p.hp=p.maxHp;p.flasks=3;p.posture=0;G.msg='灯火已燃　·　记下此处';G.msgT=2.5;AU.heal();AU.tone(220,1.2,.2,'triangle',0,1);ringFx(c.x,c.y-60,90,'#e33',.8,4);for(let k=0;k<14;k++)part({t:'spark',x:c.x,y:c.y-70,vx:rand(-120,120),vy:rand(-260,-60),life:.9,max:.9,r:12,col:'#ff6a50',g:200})}});
-    for(const h of HINTS){if(!G.shown[h.id]&&p.x>h.x&&p.x<h.x+700){G.shown[h.id]=1;G.hint=h.t;G.hintT=5.5}}
+    for(const h of HINTS){if(!G.shown[h.id]&&p.x>h.x&&p.x<h.x+700){G.shown[h.id]=1;G.hint=(TOUCH&&h.t2)||h.t;G.hintT=5.5}}
     if(!G.bossActive&&!G.boss.dead&&p.x>BOSS_TRIGGER&&p.onGround){G.bossActive=true;G.bossLocked=true;G.bossIntro=2.4;AU.boss=true;AU.gong();shake(8);G.boss.state='idle';G.boss.x=BOSS_X}
     if(G.gateOpen&&p.x>GATE_X-30&&!G.ending){G.ending=true;G.endT=0;G.fade=0}
   }
@@ -742,7 +782,7 @@ function drawEnemy(e){
     if(s.proj&&e.phase==='wu'){ctx.fillStyle='rgba(190,20,26,.25)';ctx.fillRect(Math.min(e.x,e.x+e.face*800),e.y-40,800,40)}}
   if(e.cue){const tx=e.x+e.face*(e.kind==='spear'?150:70),ty=e.y-e.h*.8*(e.kind==='boss'?1.1:1);ctx.strokeStyle='#fff';ctx.lineWidth=3;ctx.beginPath();ctx.arc(tx,ty,14+Math.sin(G.t*50)*3,0,TAU);ctx.stroke();sparkBurst(tx,ty,1,200,'#fff')}
   if(e.state==='broken'&&!e.dead){ctx.fillStyle='#e8e4da';for(let i=0;i<3;i++){const a=G.t*5+i*2.1;ctx.beginPath();ctx.arc(e.x+Math.cos(a)*18,e.y-e.h*e.cfg.sc-14+Math.sin(a)*5,3,0,TAU);ctx.fill()}
-    const p=G.player;if(Math.abs(p.x-e.x)<250){ctx.fillStyle='#c4161c';ctx.font='bold 22px '+SERIF;ctx.textAlign='center';ctx.fillText('[J] 处决',e.x,e.y-e.h*e.cfg.sc-34)}}
+    const p=G.player;if(Math.abs(p.x-e.x)<250){ctx.fillStyle='#c4161c';ctx.font='bold 22px '+SERIF;ctx.textAlign='center';ctx.fillText(TT('[J] 处决','[攻] 处决'),e.x,e.y-e.h*e.cfg.sc-34)}}
   // mini bars
   if(!e.dead&&e.kind!=='boss'&&(e.state!=='idle')){const w=50,x=e.x-w/2,y=e.y-e.h*e.cfg.sc-18;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(x-1,y-1,w+2,8);ctx.fillStyle='#b3121a';ctx.fillRect(x,y,w*e.hp/e.maxHp,3);ctx.fillStyle=e.posture/e.maxPost>.7?'#ff6a50':'#e8e4da';ctx.fillRect(x,y+4,w*Math.min(1,e.posture/e.maxPost),2)}
 }
@@ -752,7 +792,7 @@ function drawPlayer(){const p=G.player;
   if(p.act==='charge'&&p.charge>.15){ctx.strokeStyle='rgba(255,90,80,'+Math.min(1,p.charge)+')';ctx.lineWidth=3;ctx.beginPath();ctx.arc(p.x,p.y-50,50-p.charge*28,0,TAU*Math.min(1,p.charge/.9));ctx.stroke()}
   if(p.act==='parry'&&p.st<PW){ctx.strokeStyle='rgba(255,255,255,.9)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x+p.face*28,p.y-62,22,-1.4,1.4);ctx.stroke()}
   if(p.act==='parry'&&p.guarding){ctx.strokeStyle='rgba(235,232,222,.5)';ctx.lineWidth=2;ctx.beginPath();ctx.arc(p.x+p.face*20,p.y-60,36,p.face>0?-1.2:Math.PI-1.2+.0,p.face>0?1.2:Math.PI+1.2);ctx.stroke()}
-  if(p.counterT>0&&p.counterTarget&&!p.counterTarget.dead){ctx.fillStyle='#c4161c';ctx.font='bold 34px '+KAI;ctx.textAlign='center';ctx.fillText('J 反击',p.x,p.y-p.h-26)}
+  if(p.counterT>0&&p.counterTarget&&!p.counterTarget.dead){ctx.fillStyle='#c4161c';ctx.font='bold 34px '+KAI;ctx.textAlign='center';ctx.fillText(TT('J 反击','点「攻」反击'),p.x,p.y-p.h-26)}
 }
 function drawProj(t){for(const pr of G.proj){const d=sgn(pr.vx);ctx.save();ctx.translate(pr.x,pr.y);ctx.scale(d,1);
   if(pr.pk==='ground'){ctx.fillStyle='rgba(190,20,26,.85)';ctx.beginPath();ctx.moveTo(-30,0);ctx.quadraticCurveTo(0,-pr.h*1.6,32,0);ctx.quadraticCurveTo(0,-pr.h*.5,-30,0);ctx.fill()}
@@ -794,23 +834,23 @@ function drawHUD(){
   ctx.strokeText('势',30,86);ctx.fillText('势',30,86);
   const pk=p.posture/p.maxPost;brushBar(64,74,270,8,pk,pk>.7?'#ff5a40':'#e8e4da',null);
   for(let i=0;i<3;i++){const x=70+i*30,y=104;ctx.fillStyle=i<p.flasks?'#b3121a':'rgba(232,228,218,.15)';ctx.beginPath();ctx.ellipse(x,y+6,8,10,0,0,TAU);ctx.fill();ctx.beginPath();ctx.ellipse(x,y-6,4.5,6,0,0,TAU);ctx.fill();ctx.strokeStyle='rgba(232,228,218,.7)';ctx.lineWidth=1.2;ctx.stroke()}
-  ctx.font='14px '+SERIF;ctx.fillStyle='rgba(232,228,218,.6)';ctx.fillText('[Q] 药',150,110);
+  ctx.font='14px '+SERIF;ctx.fillStyle='rgba(232,228,218,.6)';ctx.fillText(TT('[Q] 药','药'),150,110);
   // letter seal
   ctx.fillStyle='#a8161c';ctx.fillRect(470,44,34,34);ctx.fillStyle='#f0e8dc';ctx.font='bold 24px '+KAI;ctx.textAlign='center';ctx.fillText('信',487,69);ctx.textAlign='left';ctx.font='14px '+SERIF;ctx.fillStyle='rgba(232,228,218,.7)';ctx.fillText('密信 · 送至观雨楼',512,66);
   // top right
-  ctx.textAlign='right';ctx.font='13px '+SERIF;ctx.fillStyle='rgba(232,228,218,.5)';ctx.fillText('P 暂停　M 静音　F 全屏',W-24,34);
+  if(!TOUCH){ctx.textAlign='right';ctx.font='13px '+SERIF;ctx.fillStyle='rgba(232,228,218,.5)';ctx.fillText('P 暂停　M 静音　F 全屏',W-24,34)}
   ctx.restore();
   // boss bar
   const b=G.boss;if(G.bossActive&&b&&!b.dead){const w=700,x=(W-w)/2,y=H-70,show=Math.min(1,(2.4-G.bossIntro)*1.2);ctx.save();ctx.globalAlpha=show;
     ctx.font='bold 28px '+KAI;ctx.textAlign='center';ctx.fillStyle='#e8e4da';ctx.strokeStyle='#000';ctx.lineWidth=5;ctx.strokeText('寒鸦判官',W/2,y-12);ctx.fillText('寒鸦判官',W/2,y-12);
     brushBar(x,y,w,14,b.hp/b.maxHp,b.ph===2?'#d11a22':'#a8141b',null);ctx.fillStyle='rgba(255,255,255,.7)';ctx.fillRect(x+w/2-1,y-4,2,22);
     const pk=b.posture/b.maxPost;brushBar(x+w*.15,y+22,w*.7,6,pk,pk>.7?'#ff5a40':'#e8e4da',null);
-    if(b.state==='broken'){ctx.font='bold 20px '+SERIF;ctx.fillStyle='#ff5a40';ctx.fillText('失衡 · 近身按 J 处决',W/2,y+50)}
+    if(b.state==='broken'){ctx.font='bold 20px '+SERIF;ctx.fillStyle='#ff5a40';ctx.fillText(TT('失衡 · 近身按 J 处决','失衡 · 近身点「攻」处决'),W/2,y+50)}
     ctx.restore()}
   // intro card
   if(G.bossIntro>0&&G.bossActive){const k=G.bossIntro/2.4,a=Math.min(1,(1-k)*4)*Math.min(1,k*3);ctx.save();ctx.globalAlpha=a;ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,H*.34,W,130);ctx.font='bold 76px '+KAI;ctx.textAlign='center';ctx.fillStyle='#c4161c';ctx.fillText('寒鸦判官',W/2,H*.34+80);ctx.font='18px '+SERIF;ctx.fillStyle='#d9d5cc';ctx.fillText('观雨楼守楼人 · 刀下无信',W/2,H*.34+112);ctx.restore()}
   // hints / messages
-  if(G.hintT>0&&G.hint){const a=Math.min(1,G.hintT);ctx.save();ctx.globalAlpha=a;ctx.font='19px '+SERIF;ctx.textAlign='center';const w=ctx.measureText(G.hint).width+50;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(W/2-w/2,H-130,w,38);ctx.fillStyle='#e8e4da';ctx.fillText(G.hint,W/2,H-105);ctx.restore()}
+  if(G.hintT>0&&G.hint){const a=Math.min(1,G.hintT);ctx.save();ctx.globalAlpha=a;const hf=TOUCH?24:19,hy0=TOUCH?215:H-130;ctx.font=hf+'px '+SERIF;ctx.textAlign='center';const w=ctx.measureText(G.hint).width+50,hh=hf+19;ctx.fillStyle='rgba(0,0,0,.6)';ctx.fillRect(W/2-w/2,hy0,w,hh);ctx.fillStyle='#e8e4da';ctx.fillText(G.hint,W/2,hy0+hh/2+hf*.35);ctx.restore()}
   if(G.msgT>0&&G.msg){const a=Math.min(1,G.msgT);ctx.save();ctx.globalAlpha=a;ctx.font='bold 26px '+KAI;ctx.textAlign='center';ctx.lineWidth=5;ctx.strokeStyle='#000';ctx.strokeText(G.msg,W/2,170);ctx.fillStyle='#e8e4da';ctx.fillText(G.msg,W/2,170);ctx.restore()}
   // low hp pulse
   if(p.hp/p.maxHp<.3&&!p.dead){const a=.12+.1*Math.sin(G.t*6);const g=ctx.createRadialGradient(W/2,H/2,H*.3,W/2,H/2,W*.65);g.addColorStop(0,'rgba(150,0,10,0)');g.addColorStop(1,'rgba(150,0,10,'+(a*2)+')');ctx.fillStyle=g;ctx.fillRect(0,0,W,H)}
@@ -837,19 +877,19 @@ function drawTitle(){
   ctx.save();ctx.textAlign='center';ctx.font='20px '+SERIF;ctx.fillStyle='#d9d5cc';ctx.fillText('I N K  &  R A I N　·　A  B L A D E  A L O N E',W/2,222);
   ctx.font='16px '+SERIF;ctx.fillStyle='rgba(232,228,218,.7)';ctx.fillText('江南雨夜，屋脊之上。一封染血的密信，一柄孤刃，一座拦路的观雨楼。',W/2,252);ctx.restore();
   // controls
-  const rows=[['← → / A D','移动'],['Space','跳跃 · 空中二段跳 · 长按滑翔 · 贴墙蹬墙跳'],['J','出剑（连按三下连招 · 空中劈斩）'],['I','重击（按住蓄力 · 可破盾）'],['K','格挡 / 弹反（出招瞬间按 = 精准格挡 → 慢动作反击）'],['L','闪避（无敌帧 · 精准闪避触发慢动作）'],['Q','饮药　　P 暂停　M 静音　F 全屏']];
+  const rows=TOUCH?[['左摇杆','移动（向下拉 = 穿过薄檐）'],['跳','跳跃 · 空中二段跳 · 长按滑翔 · 贴墙蹬墙跳'],['攻','出剑（连点三下连招 · 空中劈斩）'],['重','重击（按住蓄力 · 可破盾）'],['挡','格挡 / 弹反（出招瞬间点按 = 精准格挡 → 慢动作反击）'],['闪','闪避（无敌帧 · 精准闪避触发慢动作）'],['药','饮药　　右上角「‖」暂停']]:[['← → / A D','移动'],['Space','跳跃 · 空中二段跳 · 长按滑翔 · 贴墙蹬墙跳'],['J','出剑（连按三下连招 · 空中劈斩）'],['I','重击（按住蓄力 · 可破盾）'],['K','格挡 / 弹反（出招瞬间按 = 精准格挡 → 慢动作反击）'],['L','闪避（无敌帧 · 精准闪避触发慢动作）'],['Q','饮药　　P 暂停　M 静音　F 全屏']];
   const bx=W/2-380,by=300;ctx.save();ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(bx-20,by-30,780,rows.length*34+40);ctx.strokeStyle='rgba(232,228,218,.35)';ctx.lineWidth=1;ctx.strokeRect(bx-20,by-30,780,rows.length*34+40);
   ctx.font='bold 17px '+SERIF;rows.forEach((r,i)=>{const y=by+i*34;ctx.textAlign='left';ctx.fillStyle='#0b0b0c';ctx.strokeStyle='#d9d5cc';ctx.lineWidth=1.2;const w=Math.max(66,ctx.measureText(r[0]).width+22);ctx.fillRect(bx,y-20,w,28);ctx.strokeRect(bx,y-20,w,28);ctx.fillStyle='#f0e8dc';ctx.fillText(r[0],bx+11,y);ctx.fillStyle='#d9d5cc';ctx.font='17px '+SERIF;ctx.fillText(r[1],bx+190,y);ctx.font='bold 17px '+SERIF});ctx.restore();
-  ctx.save();ctx.textAlign='center';ctx.font='15px '+SERIF;ctx.fillStyle='rgba(232,228,218,.65)';ctx.fillText('红色「危」光 = 不可格挡，须闪避或跳起　·　势条打满的敌人会失衡，近身按 J 处决',W/2,by+rows.length*34+44);
+  ctx.save();ctx.textAlign='center';ctx.font='15px '+SERIF;ctx.fillStyle='rgba(232,228,218,.65)';ctx.fillText(TT('红色「危」光 = 不可格挡，须闪避或跳起　·　势条打满的敌人会失衡，近身按 J 处决','红色「危」光 = 不可格挡，须闪避或跳起　·　势条打满的敌人会失衡，近身点「攻」处决'),W/2,by+rows.length*34+44);
   ctx.font='16px '+KAI;ctx.fillStyle='rgba(232,228,218,.75)';ctx.fillText('浮士德工作室 出品',W/2,H-110);
   ctx.font='13px '+SERIF;ctx.fillStyle='rgba(232,228,218,.5)';ctx.fillText('Faustus Studio',W/2,H-90);
-  const a=.55+.45*Math.sin(tt*3);ctx.globalAlpha=a;ctx.font='bold 30px '+KAI;ctx.fillStyle='#e8e4da';ctx.fillText('按 Enter 开始',W/2,H-52);ctx.restore()}
+  const a=.55+.45*Math.sin(tt*3);ctx.globalAlpha=a;ctx.font='bold 30px '+KAI;ctx.fillStyle='#e8e4da';ctx.fillText(TT('按 Enter 开始','轻触屏幕开始'),W/2,H-52);ctx.restore()}
 function drawStory(){
   ctx.fillStyle='rgba(0,0,0,.86)';ctx.fillRect(0,0,W,H);
-  const lines=['三更，雨。','','你怀揣一封染血的密信，','自江南屋脊之上，夜行而来。','','观雨楼灯火在前，守楼人寒鸦判官横刀拦路——','信，必须送到。','','按 Enter 入夜'];
+  const lines=['三更，雨。','','你怀揣一封染血的密信，','自江南屋脊之上，夜行而来。','','观雨楼灯火在前，守楼人寒鸦判官横刀拦路——','信，必须送到。','',TT('按 Enter 入夜','轻触屏幕入夜')];
   ctx.save();ctx.textAlign='center';lines.forEach((l,i)=>{const a=clamp(G.storyT*1.6-i*.35,0,1);ctx.globalAlpha=a;ctx.font=(i===0?'bold 52px ':'24px ')+KAI;ctx.fillStyle=i===0?'#c4161c':'#e8e4da';ctx.fillText(l,W/2,170+i*48)});ctx.restore()}
-function drawDeath(){const k=clamp((G.deathT-.6)*1.4,0,1);if(k<=0)return;ctx.save();ctx.globalAlpha=k;ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);brushText('殒',W/2,H/2+40,200,'#b3121a');ctx.font='22px '+SERIF;ctx.textAlign='center';ctx.fillStyle='#e8e4da';if(G.deathT>1.2)ctx.fillText('按 Enter 自灯笼处重来',W/2,H/2+110);ctx.restore()}
-function drawPause(){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);brushText('暂 停',W/2,200,96,'#e8e4da');ctx.save();ctx.textAlign='center';ctx.font='20px '+SERIF;ctx.fillStyle='#d9d5cc';['P / Esc 继续','← → / A D 移动 · Space 跳 · J 出剑 · I 重击 · K 格挡 · L 闪避 · Q 饮药','R 返回标题'].forEach((l,i)=>ctx.fillText(l,W/2,290+i*40));ctx.restore()}
+function drawDeath(){const k=clamp((G.deathT-.6)*1.4,0,1);if(k<=0)return;ctx.save();ctx.globalAlpha=k;ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(0,0,W,H);brushText('殒',W/2,H/2+40,200,'#b3121a');ctx.font='22px '+SERIF;ctx.textAlign='center';ctx.fillStyle='#e8e4da';if(G.deathT>1.2)ctx.fillText(TT('按 Enter 自灯笼处重来','轻触屏幕，自灯笼处重来'),W/2,H/2+110);ctx.restore()}
+function drawPause(){ctx.fillStyle='rgba(0,0,0,.7)';ctx.fillRect(0,0,W,H);brushText('暂 停',W/2,200,96,'#e8e4da');ctx.save();ctx.textAlign='center';ctx.font='20px '+SERIF;ctx.fillStyle='#d9d5cc';(TOUCH?[]:['P / Esc 继续','← → / A D 移动 · Space 跳 · J 出剑 · I 重击 · K 格挡 · L 闪避 · Q 饮药','R 返回标题']).forEach((l,i)=>ctx.fillText(l,W/2,290+i*40));ctx.restore()}
 function drawWin(){const k=clamp(G.endT*.5-.5,0,1);if(k<=0)return;ctx.save();ctx.globalAlpha=k;ctx.fillStyle='rgba(235,230,218,.0)';ctx.fillRect(0,0,W,H);
   const g=ctx.createLinearGradient(0,0,0,H);g.addColorStop(0,'rgba(0,0,0,.92)');g.addColorStop(1,'rgba(10,8,8,.96)');ctx.fillStyle=g;ctx.fillRect(0,0,W,H);
   brushText('信已送达',W/2,230,130,'#efe9dc');ctx.font='24px '+KAI;ctx.textAlign='center';ctx.fillStyle='#d9d5cc';ctx.fillText('雨停了。天，快亮了。',W/2,290);
@@ -858,7 +898,7 @@ function drawWin(){const k=clamp(G.endT*.5-.5,0,1);if(k<=0)return;ctx.save();ctx
   const m=Math.floor(G.time/60),s=Math.floor(G.time%60);
   ctx.font='20px '+SERIF;ctx.fillStyle='#e8e4da';const L=[['用时',m+' 分 '+s+' 秒'],['倒下',G.deaths+' 次'],['精准格挡',G.stats.pp+' 次'],['精准闪避',G.stats.pd+' 次'],['处决',G.stats.exec+' 次'],['斩敌',G.stats.kills+' 人']];L.forEach((r,i)=>{ctx.textAlign='right';ctx.fillStyle='rgba(232,228,218,.6)';ctx.fillText(r[0],W/2-20,360+i*36);ctx.textAlign='left';ctx.fillStyle='#e8e4da';ctx.fillText(r[1],W/2+20,360+i*36)});
   ctx.textAlign='center';ctx.fillStyle='#b3121a';ctx.fillRect(W/2-30,H-130,60,60);ctx.fillStyle='#f0e8dc';ctx.font='bold 44px '+KAI;ctx.fillText('完',W/2,H-84);
-  if(G.endT>3){ctx.globalAlpha=.6+.4*Math.sin(G.t*3);ctx.font='20px '+SERIF;ctx.fillStyle='#d9d5cc';ctx.fillText('按 Enter 返回标题',W/2,H-30)}ctx.restore()}
+  if(G.endT>3){ctx.globalAlpha=.6+.4*Math.sin(G.t*3);ctx.font='20px '+SERIF;ctx.fillStyle='#d9d5cc';ctx.fillText(TT('按 Enter 返回标题','轻触屏幕返回标题'),W/2,H-30)}ctx.restore()}
 
 /* ---------------- main loop ---------------- */
 function update(rdt){
@@ -899,10 +939,99 @@ function render(){
 }
 let lastT=performance.now();
 function frame(now){const rdt=Math.min(.05,Math.max(.001,(now-lastT)/1000));lastT=now;G._rdt=rdt;
-  try{update(rdt);render()}catch(e){console.error(e);window.__err=(window.__err||[]);window.__err.push(String(e&&e.stack||e));if(window.__err.length>5)window.__err.shift()}
+  try{tcFrame(rdt);update(rdt);render()}catch(e){console.error(e);window.__err=(window.__err||[]);window.__err.push(String(e&&e.stack||e));if(window.__err.length>5)window.__err.shift()}
   requestAnimationFrame(frame)}
 requestAnimationFrame(frame);
 window.__G=G;window.__dbg={PL,CPS,startGame,respawn,hurtEnemy,execute};
+/* ---------------- 触屏控制（手机 / 平板） ---------------- */
+const TC={roles:new Map(),sid:null,sx:0,sy:0,kx:0,ky:0,vis:false,pm:false,rotOff:false,fsTried:false};
+const TCR=60;
+const TCK={atk:'KeyJ',heavy:'KeyI',parry:'KeyK',dodge:'KeyL',heal:'KeyQ',jump:'Space'};
+const $e=id=>document.getElementById(id);
+function tcKeyOn(c){if(!keys[c]){keys[c]=true;anyKeyAction(c)}}
+function tcKeyOff(c){keys[c]=false}
+function tcBtn(a,el,down){
+  if(down)el.classList.add('down');else el.classList.remove('down');
+  AU.init();if(AU.c&&AU.c.state==='suspended')AU.c.resume();
+  if(a==='pause'){if(down)togglePause();return}
+  const c=TCK[a];if(!c)return;if(down)tcKeyOn(c);else tcKeyOff(c);
+}
+function tcStickSet(x,y){
+  let dx=x-TC.sx,dy=y-TC.sy;const d=Math.hypot(dx,dy);if(d>TCR){dx*=TCR/d;dy*=TCR/d}
+  TC.kx=dx;TC.ky=dy;const s=$e('stk').style;s.setProperty('--kx',dx+'px');s.setProperty('--ky',dy+'px');
+  const L=dx<-TCR*.3,R=dx>TCR*.3,D=dy>TCR*.7;
+  if(L)tcKeyOn('ArrowLeft');else tcKeyOff('ArrowLeft');
+  if(R)tcKeyOn('ArrowRight');else tcKeyOff('ArrowRight');
+  if(D)keys.ArrowDown=true;else keys.ArrowDown=false;
+}
+function tcStickEnd(){TC.sid=null;TC.kx=TC.ky=0;tcKeyOff('ArrowLeft');tcKeyOff('ArrowRight');keys.ArrowDown=false;
+  const e=$e('stk');e.classList.remove('act');e.style.left='';e.style.bottom='';e.style.removeProperty('--kx');e.style.removeProperty('--ky')}
+function tcReleaseAll(){
+  for(const [id,r] of TC.roles)if(r.k==='b')tcBtn(r.a,r.el,false);
+  TC.roles.clear();if(TC.sid!==null)tcStickEnd();
+  document.querySelectorAll('#tc .tb.down').forEach(e=>e.classList.remove('down'));
+  for(const c of Object.values(TCK))keys[c]=false;
+}
+function tcFullscreen(){
+  if(TC.fsTried)return;TC.fsTried=true;
+  try{const d=document.documentElement;if(!document.fullscreenElement&&d.requestFullscreen){const p=d.requestFullscreen();if(p&&p.catch)p.catch(()=>{})}}catch(_){}
+  try{if(screen.orientation&&screen.orientation.lock){const p=screen.orientation.lock('landscape');if(p&&p.catch)p.catch(()=>{})}}catch(_){}
+}
+function tcTitleFromPause(){G.paused=false;G.mode='title';G.player=null;G.enemies=[];G.fade=1}
+function tcMenu(m){
+  if(m==='resume')togglePause();
+  else if(m==='mute'){AU.init();AU.setMute(!AU.muted)}
+  else if(m==='fs'){try{if(document.fullscreenElement)document.exitFullscreen();else document.documentElement.requestFullscreen()}catch(_){}}
+  else if(m==='title')tcTitleFromPause();
+}
+document.addEventListener('touchstart',e=>{
+  if(!TOUCH){TOUCH=true;document.body.classList.add('touch');resize()}
+  const pm=e.target.closest&&e.target.closest('#pm [data-m]');
+  if(pm){tcMenu(pm.dataset.m);e.preventDefault();return}
+  if(e.target.id==='rot'){TC.rotOff=true;e.preventDefault();return}
+  if(!TC.vis){e.preventDefault();return}
+  for(const t of e.changedTouches){
+    const el=t.target&&t.target.closest?t.target.closest('[data-a]'):null;
+    if(el){TC.roles.set(t.identifier,{k:'b',a:el.dataset.a,el});tcBtn(el.dataset.a,el,true)}
+    else if(TC.sid===null&&t.clientX<innerWidth*.5){
+      TC.sid=t.identifier;TC.sx=t.clientX;TC.sy=t.clientY;TC.roles.set(t.identifier,{k:'s'});
+      const s=$e('stk');s.classList.add('act');s.style.left=(t.clientX-68)+'px';s.style.bottom=(innerHeight-t.clientY-68)+'px';tcStickSet(t.clientX,t.clientY);
+    }
+  }
+  e.preventDefault();
+},{passive:false});
+document.addEventListener('touchmove',e=>{
+  for(const t of e.changedTouches){const r=TC.roles.get(t.identifier);if(r&&r.k==='s')tcStickSet(t.clientX,t.clientY)}
+  e.preventDefault();
+},{passive:false});
+function tcEnd(e){
+  for(const t of e.changedTouches){
+    const r=TC.roles.get(t.identifier);if(!r)continue;
+    if(r.k==='s')tcStickEnd();else if(r.k==='b')tcBtn(r.a,r.el,false);
+    TC.roles.delete(t.identifier);
+  }
+  if(e.cancelable)e.preventDefault();
+}
+document.addEventListener('touchend',tcEnd,{passive:false});
+document.addEventListener('touchcancel',tcEnd,{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&TOUCH&&G&&G.mode==='play')togglePause(true)});
+// 轻触屏幕：标题 / 序章 / 死亡 / 结局 时等同回车（标题页的首次轻触同时尝试全屏）
+document.addEventListener('pointerdown',e=>{
+  if(!TOUCH||e.pointerType==='mouse')return;
+  AU.init();
+  if(G.mode==='title'){tcFullscreen();press.ok=performance.now()}
+  else if(G.mode==='story')press.ok=performance.now();
+  else if(G.ending||(G.player&&G.player.dead))press.ok=performance.now();
+});
+function tcFrame(dt){
+  const play=TOUCH&&G&&G.mode==='play'&&!G.paused&&!G.ending&&!!G.player;
+  if(play!==TC.vis){TC.vis=play;$e('tc').classList.toggle('on',play);if(!play)tcReleaseAll()}
+  const pm=TOUCH&&G&&G.mode==='play'&&G.paused;
+  if(pm!==TC.pm){TC.pm=pm;$e('pm').classList.toggle('on',pm);if(pm)$e('pm').querySelector('[data-m=mute]').textContent=AU.muted?'开启声音':'静音'}
+  const rot=TOUCH&&!TC.rotOff&&innerHeight>innerWidth;
+  $e('rot').style.display=rot?'block':'none';
+}
 </script>
 </body>
 </html>

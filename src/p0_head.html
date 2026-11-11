@@ -3,16 +3,53 @@
 <head>
 <meta charset="utf-8">
 <meta name="author" content="Faustus Studio · 浮士德工作室">
-<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes">
 <title>墨雨孤刃 · Ink &amp; Rain</title>
 <style>
-html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none}
+html,body{margin:0;height:100%;background:#000;overflow:hidden;-webkit-user-select:none;user-select:none;touch-action:none;overscroll-behavior:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
 canvas{display:block;position:absolute;left:0;top:0;outline:none;touch-action:none}
 #nojs{position:absolute;inset:0;color:#ddd;display:flex;align-items:center;justify-content:center;font:16px sans-serif}
+
+#tc,#pm{display:none}
+body.touch #tc.on{display:block;position:fixed;inset:0;z-index:4;touch-action:none}
+.tb{position:absolute;display:flex;align-items:center;justify-content:center;border-radius:50%;
+ right:calc(var(--r)*1px + env(safe-area-inset-right));bottom:calc(var(--b)*1px + env(safe-area-inset-bottom));width:calc(var(--s)*1px);height:calc(var(--s)*1px);
+ background:rgba(20,18,18,.38);border:2px solid rgba(232,228,218,.55);color:#efe9dc;font:700 calc(var(--s)*.38px) "STKaiti","KaiTi","Kaiti SC","Noto Serif CJK SC","Songti SC",serif;text-shadow:0 0 6px #000;touch-action:none}
+.tb b{pointer-events:none;font-weight:700}
+.tb.down{background:rgba(232,228,218,.5);color:#111;text-shadow:none}
+.tb.atk{background:rgba(160,18,26,.45);border-color:rgba(255,120,110,.8)}
+.tb.atk.down{background:rgba(220,40,50,.75);color:#fff}
+.atk{--r:24;--b:28;--s:88}.jump{--r:126;--b:20;--s:76}.heavy{--r:24;--b:128;--s:64}.parry{--r:100;--b:108;--s:64}.dodge{--r:176;--b:104;--s:64}.heal{--r:218;--b:28;--s:60}
+.pausebtn{--r:12;--s:56;top:calc(10px + env(safe-area-inset-top));bottom:auto;font-size:24px}
+#stk{position:absolute;left:calc(36px + env(safe-area-inset-left));bottom:calc(30px + env(safe-area-inset-bottom));width:136px;height:136px;border-radius:50%;background:rgba(20,18,18,.3);border:2px solid rgba(232,228,218,.4);pointer-events:none}
+#stk i{position:absolute;left:50%;top:50%;width:64px;height:64px;margin:-32px 0 0 -32px;border-radius:50%;background:rgba(232,228,218,.4);border:2px solid rgba(255,250,240,.8);transform:translate(var(--kx,0px),var(--ky,0px))}
+#stk.act{background:rgba(20,18,18,.45)}
+body.touch #pm.on{display:flex;position:fixed;left:50%;top:56%;transform:translate(-50%,-50%);z-index:6;gap:12px;flex-wrap:wrap;justify-content:center;width:min(92vw,560px)}
+#pm div{min-width:128px;padding:14px 18px;text-align:center;color:#efe9dc;background:rgba(20,18,18,.75);border:2px solid rgba(232,228,218,.6);font:700 20px "STKaiti","KaiTi","Kaiti SC","Noto Serif CJK SC","Songti SC",serif;touch-action:none}
+#pm div:active{background:rgba(232,228,218,.5);color:#111}
+#rot{position:fixed;left:50%;top:calc(270px + env(safe-area-inset-top));transform:translateX(-50%);z-index:6;padding:7px 14px;background:rgba(0,0,0,.72);border:1px solid #d6b370;color:#e8d6a8;font:14px sans-serif;display:none;white-space:nowrap}
+@media(orientation:portrait){
+ .atk{--r:20;--b:80;--s:88}.jump{--r:122;--b:60;--s:76}.heavy{--r:20;--b:190;--s:64}.parry{--r:96;--b:170;--s:64}.dodge{--r:172;--b:150;--s:64}.heal{--r:216;--b:60;--s:60}
+ #stk{bottom:calc(80px + env(safe-area-inset-bottom))}
+ body.touch #pm.on{top:42%}
+}
 </style>
 </head>
 <body>
 <canvas id="c" tabindex="0"></canvas>
 <div id="nojs">加载中… Loading…</div>
+<div id="tc">
+  <div id="stk"><i></i></div>
+  <div class="tb atk" data-a="atk"><b>攻</b></div>
+  <div class="tb jump" data-a="jump"><b>跳</b></div>
+  <div class="tb heavy" data-a="heavy"><b>重</b></div>
+  <div class="tb parry" data-a="parry"><b>挡</b></div>
+  <div class="tb dodge" data-a="dodge"><b>闪</b></div>
+  <div class="tb heal" data-a="heal"><b>药</b></div>
+  <div class="tb pausebtn" data-a="pause"><b>‖</b></div>
+</div>
+<div id="pm"><div data-m="resume">继续</div><div data-m="mute">静音</div><div data-m="fs">全屏</div><div data-m="title">回到标题</div></div>
+<div id="rot">↻ 建议把手机横过来玩（点此关闭）</div>
 <script>
 'use strict';

@@ -138,7 +138,7 @@ function worldUpdate(dt,rdt){
   // triggers
   if(!p.dead){
     CPS.forEach((c,i)=>{if(i>G.cp&&Math.abs(p.x-c.x)<80&&Math.abs(p.y-c.y)<90){G.cp=i;p.hp=p.maxHp;p.flasks=3;p.posture=0;G.msg='灯火已燃　·　记下此处';G.msgT=2.5;AU.heal();AU.tone(220,1.2,.2,'triangle',0,1);ringFx(c.x,c.y-60,90,'#e33',.8,4);for(let k=0;k<14;k++)part({t:'spark',x:c.x,y:c.y-70,vx:rand(-120,120),vy:rand(-260,-60),life:.9,max:.9,r:12,col:'#ff6a50',g:200})}});
-    for(const h of HINTS){if(!G.shown[h.id]&&p.x>h.x&&p.x<h.x+700){G.shown[h.id]=1;G.hint=h.t;G.hintT=5.5}}
+    for(const h of HINTS){if(!G.shown[h.id]&&p.x>h.x&&p.x<h.x+700){G.shown[h.id]=1;G.hint=(TOUCH&&h.t2)||h.t;G.hintT=5.5}}
     if(!G.bossActive&&!G.boss.dead&&p.x>BOSS_TRIGGER&&p.onGround){G.bossActive=true;G.bossLocked=true;G.bossIntro=2.4;AU.boss=true;AU.gong();shake(8);G.boss.state='idle';G.boss.x=BOSS_X}
     if(G.gateOpen&&p.x>GATE_X-30&&!G.ending){G.ending=true;G.endT=0;G.fade=0}
   }

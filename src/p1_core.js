@@ -6,7 +6,10 @@ const W=1280,H=720,TAU=Math.PI*2;
 const cv=document.getElementById('c'),ctx=cv.getContext('2d');
 document.getElementById('nojs').style.display='none';
 let VS=1,VX=0,VY=0;
-function resize(){const d=Math.min(window.devicePixelRatio||1,2);cv.width=Math.floor(innerWidth*d);cv.height=Math.floor(innerHeight*d);cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';VS=Math.min(cv.width/W,cv.height/H);VX=(cv.width-W*VS)/2;VY=(cv.height-H*VS)/2}
+let TOUCH=!!((window.matchMedia&&matchMedia('(pointer:coarse)').matches)||/[?&]touch=1/.test(location.search));
+document.body.classList.toggle('touch',TOUCH);
+const TT=(a,b)=>TOUCH?b:a;
+function resize(){const d=Math.min(window.devicePixelRatio||1,2);cv.width=Math.floor(innerWidth*d);cv.height=Math.floor(innerHeight*d);cv.style.width=innerWidth+'px';cv.style.height=innerHeight+'px';VS=Math.min(cv.width/W,cv.height/H);VX=(cv.width-W*VS)/2;VY=(cv.height-H*VS)/2;if(TOUCH&&innerHeight>innerWidth)VY=Math.min(VY,40*d)}
 addEventListener('resize',resize);resize();
 const clamp=(v,a,b)=>v<a?a:v>b?b:v,lerp=(a,b,t)=>a+(b-a)*t,rand=(a,b)=>a+Math.random()*(b-a),ease=t=>t*t*(3-2*t);
 const sgn=v=>v<0?-1:1;
@@ -81,12 +84,12 @@ const LEVEL_END=6380,ARENA_L=4975,ARENA_R=6345,BOSS_TRIGGER=5170,GATE_X=6270,BOS
 const CPS=[{x:90,y:560},{x:2460,y:580},{x:3220,y:540},{x:4440,y:500},{x:4950,y:560}];
 const SPAWNS=[['grunt',880],['grunt',1760],['grunt',2040],['spear',2660],['grunt',3390],['shield',3660],['spear',3960],['grunt',4030],['shield',4640],['grunt',4780]];
 const HINTS=[
- {x:60,t:'← → / A D 移动　Space 跳跃（空中再按二段跳，长按滑翔）',id:'h0'},
- {x:420,t:'J 出剑　连按三下成连招　　L 闪避（短暂无敌）',id:'h1'},
- {x:1320,t:'贴墙时按住方向可滑墙，Space 蹬墙跳　　Space 长按可滑翔过沟',id:'h2'},
- {x:1700,t:'K 在敌人出招瞬间按下 = 精准格挡 → 慢动作 → 立刻按 J 反击',id:'h3'},
- {x:2480,t:'红光＝不可格挡的杀招，用 L 闪避或跳起躲开　　Q 饮药',id:'h4'},
- {x:3070,t:'I 重击（按住蓄力）可破盾卫架势　势条满则失衡，近身按 J 处决',id:'h5'},
+ {x:60,t:'← → / A D 移动　Space 跳跃（空中再按二段跳，长按滑翔）',t2:'摇杆左右移动　「跳」跳跃（空中再点二段跳，长按滑翔）',id:'h0'},
+ {x:420,t:'J 出剑　连按三下成连招　　L 闪避（短暂无敌）',t2:'「攻」出剑　连点三下成连招　　「闪」闪避（短暂无敌）',id:'h1'},
+ {x:1320,t:'贴墙时按住方向可滑墙，Space 蹬墙跳　　Space 长按可滑翔过沟',t2:'贴墙时朝墙推摇杆可滑墙，「跳」蹬墙跳　　「跳」长按可滑翔过沟',id:'h2'},
+ {x:1700,t:'K 在敌人出招瞬间按下 = 精准格挡 → 慢动作 → 立刻按 J 反击',t2:'「挡」在敌人出招瞬间点按 = 精准格挡 → 慢动作 → 立刻点「攻」反击',id:'h3'},
+ {x:2480,t:'红光＝不可格挡的杀招，用 L 闪避或跳起躲开　　Q 饮药',t2:'红光＝不可格挡的杀招，用「闪」闪避或跳起躲开　　「药」饮药',id:'h4'},
+ {x:3070,t:'I 重击（按住蓄力）可破盾卫架势　势条满则失衡，近身按 J 处决',t2:'「重」重击（按住蓄力）可破盾卫架势　势条满则失衡，近身点「攻」处决',id:'h5'},
  {x:4420,t:'前方灯笼可点亮存档。观雨楼就在前面——送信，闯过守楼人。',id:'h6'}
 ];
 function platAt(x,y,tol){for(const p of PL){if(p.kind==='awn')continue;if(x>=p.x&&x<=p.x+p.w&&Math.abs(p.y-y)<(tol||8))return p}return null}
